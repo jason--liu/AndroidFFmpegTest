@@ -6,6 +6,10 @@
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
+#include <EGL/egl.h>
+
 #define TAG "FFmpeg_JNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
@@ -155,26 +159,22 @@ static SLEngineItf CreateSL() {
 }
 
 // Called after audio player empties a buffer of data
-static void playerCallback(SLAndroidSimpleBufferQueueItf caller , void *context )
-{
-    LOGD("##%s## path %s",__FUNCTION__, (char *)(context));
+static void playerCallback(SLAndroidSimpleBufferQueueItf caller, void *context) {
+    LOGD("##%s## path %s", __FUNCTION__, (char *) (context));
     //LOGD("##%s##",__FUNCTION__);
     static FILE *fp = NULL;
     static char *buf = NULL;
-    if(!buf)
-    {
-        buf = new char[1024*1024];
+    if (!buf) {
+        buf = new char[1024 * 1024];
     }
-    if(!fp)
-    {
-        fp = fopen("/storage/emulated/0/1.pcm","rb");
+    if (!fp) {
+        fp = fopen("/storage/emulated/0/1.pcm", "rb");
     }
-    if(!fp)return;
-    if(feof(fp) == 0)
-    {
-        int len = fread(buf,1,1024,fp);
-        if(len > 0)
-            (*caller)->Enqueue(caller,buf,len);
+    if (!fp)return;
+    if (feof(fp) == 0) {
+        int len = fread(buf, 1, 1024, fp);
+        if (len > 0)
+            (*caller)->Enqueue(caller, buf, len);
     }
 
 
@@ -185,8 +185,8 @@ JNIEXPORT void JNICALL
 Java_com_example_androidffmpegtest_MainActivity_testopenssl(JNIEnv *env, jobject instance,
                                                             jstring path_) {
     const char *path = env->GetStringUTFChars(path_, 0);
-    char *path1 = const_cast<char*>(path);
-    LOGD("path1 = %s",path1);
+    char *path1 = const_cast<char *>(path);
+    LOGD("path1 = %s", path1);
     SLresult result;
     //1.创建引擎
     SLEngineItf engineEngine = CreateSL();
@@ -225,11 +225,12 @@ Java_com_example_androidffmpegtest_MainActivity_testopenssl(JNIEnv *env, jobject
     SLPlayItf playerPlay = nullptr;
     SLAndroidSimpleBufferQueueItf playerBufferQueue = nullptr;
     // 表示需要这个接口，待会下面的GetInterface才能获取到
-    const SLInterfaceID ids[]={SL_IID_BUFFERQUEUE};
+    const SLInterfaceID ids[] = {SL_IID_BUFFERQUEUE};
     // 表示接口开放还是关闭，TRUE表示开放
-    const SLboolean req[]={SL_BOOLEAN_TRUE};
-    result = (*engineEngine)->CreateAudioPlayer(engineEngine, &playerObject, &ds,&audioSink,
-            sizeof(ids)/sizeof(SLInterfaceID)/*表示参数个数*/,ids, req);
+    const SLboolean req[] = {SL_BOOLEAN_TRUE};
+    result = (*engineEngine)->CreateAudioPlayer(engineEngine, &playerObject, &ds, &audioSink,
+                                                sizeof(ids) / sizeof(SLInterfaceID)/*表示参数个数*/, ids,
+                                                req);
     ASSERT_EQ(SL_RESULT_SUCCESS, result);
     LOGD("create AudioPlayer success");
 
@@ -242,11 +243,70 @@ Java_com_example_androidffmpegtest_MainActivity_testopenssl(JNIEnv *env, jobject
     result = (*playerObject)->GetInterface(playerObject, SL_IID_BUFFERQUEUE, &playerBufferQueue);
     ASSERT_EQ(SL_RESULT_SUCCESS, result);
     // 注册回调函数
-    result = (*playerBufferQueue)->RegisterCallback(playerBufferQueue, playerCallback, (void *)(path1));
+    result = (*playerBufferQueue)->RegisterCallback(playerBufferQueue, playerCallback,
+                                                    (void *) (path1));
     ASSERT_EQ(SL_RESULT_SUCCESS, result);
     // 设置播放状态
-    (*playerPlay)->SetPlayState(playerPlay,SL_PLAYSTATE_PLAYING);
+    (*playerPlay)->SetPlayState(playerPlay, SL_PLAYSTATE_PLAYING);
     // 启动回调队列
-    (*playerBufferQueue)->Enqueue(playerBufferQueue,"",1);
+    (*playerBufferQueue)->Enqueue(playerBufferQueue, "", 1);
     //env->ReleaseStringUTFChars(path_, path);
+}extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jstring url_,
+                                              jobject surface) {
+    const char *url = env->GetStringUTFChars(url_, 0);
+
+    // TODO
+    //1.获取原始窗口
+    ANativeWindow *nwin = ANativeWindow_fromSurface(env, surface);
+
+    // 创建EGL
+    // 1.create display
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (display == EGL_NO_DISPLAY) {
+        LOGE("get egldisplay failed");
+        return;
+    }
+    if (EGL_TRUE != eglInitialize(display, 0, 0)) {
+        LOGE("egl initialize failed");
+        return;
+    }
+
+    // 2.create surface
+    // 2.1 surface配置，surface可以理解为窗口
+    EGLConfig config;//下面函数的输出
+    EGLint confignum;
+    EGLint configSpec[] = {
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE
+    };//输入
+    eglChooseConfig(display, configSpec, &config, 1, &confignum);//1表示最多存储1个配置项
+    // 2.2 create surface
+    EGLSurface winsurface = eglCreateWindowSurface(display, config, nwin, NULL);
+    if (winsurface == EGL_NO_SURFACE) {
+        LOGE("egl surface initialize failed");
+        return;
+    }
+
+    // 3.create context
+    const EGLint ctxAttr[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE
+    };
+    EGLContext context = eglCreateContext(display, config, EGL_NO_CONTEXT,
+                                          ctxAttr);//第个参数表示多个设备共享上下文，这里用不到
+    if (context == EGL_NO_CONTEXT) {
+        LOGE("egl context initialize failed");
+        return;
+    }
+
+    if (EGL_TRUE != eglMakeCurrent(display, winsurface, winsurface, context)) {
+        //保证opengl函数和egl关联起来
+        LOGE("egl eglMakeCurrent failed");
+        return;
+    }
+    LOGD("EGL init success");
+    env->ReleaseStringUTFChars(url_, url);
 }

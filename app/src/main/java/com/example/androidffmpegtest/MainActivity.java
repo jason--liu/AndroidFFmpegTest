@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
         //Log.i("ffmpegtest",VIDEO_PATH);
         //testPerformance(VIDEO_PATH);
-        testopenssl(AUDIO_PATH);
+        //testopenssl(AUDIO_PATH);
     }
 
     /**
