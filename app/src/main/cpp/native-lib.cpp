@@ -251,7 +251,21 @@ Java_com_example_androidffmpegtest_MainActivity_testopenssl(JNIEnv *env, jobject
     // 启动回调队列
     (*playerBufferQueue)->Enqueue(playerBufferQueue, "", 1);
     //env->ReleaseStringUTFChars(path_, path);
-}extern "C"
+}
+
+//定点着色器glsl
+#define GET_STR(x) #x //将传入的x直接转换为字符串且加了引号，比较清晰
+static const char *vertexShader = GET_STR(
+        attribute vec4 aPosition;//顶点坐标？
+        attribute vec2 aTexCoord;//材质顶点坐标
+        varying vec2 vTexCoord;//输出材质坐标,输出给片元着色器
+        void main() {
+            vTexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);//转换成LCD显示坐标，即原点在左上角
+            gl_Position = aPosition;
+        }
+);//参考ijkplay
+
+extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jstring url_,
                                               jobject surface) {
