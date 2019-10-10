@@ -9,7 +9,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <EGL/egl.h>
-
+#include <GLES2/gl2.h>
 #define TAG "FFmpeg_JNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
@@ -280,13 +280,38 @@ static const char *fragYUV420p = GET_STR(
         yuv.r = texture2D(yTexture,vTexCoord).r;
         yuv.g = texture2D(uTexture,vTexCoord).r-0.5;
         yuv.b = texture2D(vTexture,vTexCoord).r-0.5;
-        rgb  = mat3(1.0,  1.0,   1.0
-                    0.0, -0.39465,2.03221
-                    1.13983, -0.5806, 0.0)*yuv;
+        rgb  = mat3(1.0,  1.0,   1.0,
+                    0.0, -0.39465,2.03211,
+                    1.13983, -0.58060, 0.0)*yuv;
         //输出像素颜色
         gl_FragColor = vec4(rgb,1.0);
     }
 );
+
+GLint InitShader(const char* code, GLint type)
+{
+    // 创建shader
+    GLint sh = glCreateShader(type);
+    if(!sh) {
+        LOGE("glCreateShader faild", type);
+        return 0;
+    }
+    // 加载shader
+    glShaderSource(sh,
+            1,//shader数量
+            &code, //shader执行代码
+            0);//第4个参数表示代码长度，0表示直接找字符串结尾
+    //编译shader
+    glCompileShader(sh);
+    //获取编译情况
+    GLint  status;
+    glGetShaderiv(sh, GL_COMPILE_STATUS, &status);
+    if(!status) {
+        LOGE("glGetShaderiv failed type 0x%04x",type);
+        return 0;
+    }
+    return sh;
+}
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jstring url_,
@@ -344,5 +369,12 @@ Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jst
         return;
     }
     LOGD("EGL init success");
+
+    // shader初始化
+    // 顶点shader初始化
+    GLint vsh = InitShader(vertexShader, GL_VERTEX_SHADER);
+    // 片元yuv420p shader初始化
+    GLint fsh = InitShader(fragYUV420p, GL_FRAGMENT_SHADER);
+
     env->ReleaseStringUTFChars(url_, url);
 }
