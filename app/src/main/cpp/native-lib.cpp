@@ -326,11 +326,15 @@ JNIEXPORT void JNICALL
 Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jstring url_,
                                               jobject surface) {
     const char *url = env->GetStringUTFChars(url_, 0);
-
+    FILE *fp = fopen("/storage/emulated/0/out.yuv", "rb");
+    if (!fp) {
+        LOGE("open file %s failed", url);
+        return;
+    }
     // TODO
     // 视频源大小
-    int width = 424;
-    int hight = 240;
+    int width = 1280;
+    int hight = 712;
     //1.获取原始窗口
     ANativeWindow *nwin = ANativeWindow_fromSurface(env, surface);
 
@@ -496,10 +500,18 @@ Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jst
     //测试
     for (int i = 0; i < 10000; i++) {
 
-        memset(buf[0], i, width * hight);
+        /*memset(buf[0], i, width * hight);
         memset(buf[1], i, width * hight / 4);
-        memset(buf[2], i, width * hight / 4);
+        memset(buf[2], i, width * hight / 4);*/
+        //420p yyyyyyyy uu vv
         // 激活第一层 yTexture 绑定到创建的纹理
+        if (feof(fp) == 0) {
+            //不是结尾返回0
+            //yyyyyyyy
+            fread(buf[0], 1, width * hight, fp);
+            fread(buf[1], 1, width * hight / 4, fp);
+            fread(buf[2], 1, width * hight / 4, fp);
+        }
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texts[0]);
         //替换纹理内容
