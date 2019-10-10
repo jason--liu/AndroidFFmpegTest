@@ -2,7 +2,7 @@
 #include <string>
 #include <android/log.h>
 #include <unistd.h>
-
+#include <string.h>
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
@@ -486,5 +486,43 @@ Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jst
                  GL_UNSIGNED_BYTE,// 像素数据类型
                  NULL // 纹理数据，解码后再设置
     );
+
+    ////////////////////////////纹理修改和显示/////////////////////////
+    unsigned char *buf[3] = {0}; // 像素格式转换一定要用unsigned char，char类型有符号位会影响计算
+    buf[0] = new unsigned char[width * hight];
+    buf[1] = new unsigned char[width * hight / 4];// 宽高都除以2
+    buf[2] = new unsigned char[width * hight / 4];
+
+    //测试
+    for (int i = 0; i < 10000; i++) {
+
+        memset(buf[0], i, width * hight);
+        memset(buf[1], i, width * hight / 4);
+        memset(buf[2], i, width * hight / 4);
+        // 激活第一层 yTexture 绑定到创建的纹理
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texts[0]);
+        //替换纹理内容
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, hight, GL_LUMINANCE,/*灰度图*/
+                        GL_UNSIGNED_BYTE/*存储格式*/, buf[0]);
+
+        // 激活第二层 yTexture 绑定到创建的纹理
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, texts[1]);
+        //替换纹理内容
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width / 2, hight / 2, GL_LUMINANCE,/*灰度图*/
+                        GL_UNSIGNED_BYTE/*存储格式*/, buf[1]);
+
+        // 激活第三层 yTexture 绑定到创建的纹理
+        glActiveTexture(GL_TEXTURE0 + 2);
+        glBindTexture(GL_TEXTURE_2D, texts[2]);
+        //替换纹理内容
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width / 2, hight / 2, GL_LUMINANCE,/*灰度图*/
+                        GL_UNSIGNED_BYTE/*存储格式*/, buf[2]);
+        // 三维(平面)绘制，所以数据都是绘制在surface中
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);//从0开始共4个顶点
+        // 窗口显示
+        eglSwapBuffers(display, winsurface);
+    }
     env->ReleaseStringUTFChars(url_, url);
 }
