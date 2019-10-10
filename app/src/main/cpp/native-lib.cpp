@@ -328,6 +328,9 @@ Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jst
     const char *url = env->GetStringUTFChars(url_, 0);
 
     // TODO
+    // 视频源大小
+    int width = 424;
+    int hight = 240;
     //1.获取原始窗口
     ANativeWindow *nwin = ANativeWindow_fromSurface(env, surface);
 
@@ -431,5 +434,57 @@ Java_com_example_androidffmpegtest_XPlay_Open(JNIEnv *env, jobject instance, jst
     GLuint atex = glGetAttribLocation(program, "aTexCoord");
     glEnableVertexAttribArray(atex);
     glVertexAttribPointer(atex, 2, GL_FLOAT, GL_FALSE, 8, txts);
+
+    // 材质纹理初始化
+    // 设置纹理层 将shader和yuv材质绑定？
+    glUniform1i(glGetUniformLocation(program, "yTexture"), 0); //对应材质第一层
+    glUniform1i(glGetUniformLocation(program, "uTexture"), 1); //对应材质第二层
+    glUniform1i(glGetUniformLocation(program, "vTexture"), 2); //对应材质第三层
+
+    // 创建opengl材质
+    GLuint texts[3] = {0};
+    glGenTextures(3, texts);
+    // 设置纹理属性0
+    glBindTexture(GL_TEXTURE_2D, texts[0]);
+    // 缩小、放大的过滤器 因为视频可能拉伸放大
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);//这个可以理解为设置渲染方法？
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 设置纹理格式和大小
+    glTexImage2D(GL_TEXTURE_2D, 0,//细节基本 0默认
+                 GL_LUMINANCE,//gpu内部格式 亮度，灰度图
+                 width, hight, //尺寸是2的次方 拉伸到全屏
+                 0,//边框
+                 GL_LUMINANCE,//数据格式，亮度
+                 GL_UNSIGNED_BYTE,// 像素数据类型
+                 NULL // 纹理数据，解码后再设置
+    );
+    // 设置纹理属性1
+    glBindTexture(GL_TEXTURE_2D, texts[1]);
+    // 缩小、放大的过滤器 因为视频可能拉伸放大
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);//这个可以理解为设置渲染方法？
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 设置纹理格式和大小
+    glTexImage2D(GL_TEXTURE_2D, 0,//细节基本 0默认
+                 GL_LUMINANCE,//gpu内部格式 亮度，灰度图
+                 width / 2, hight / 2, //尺寸是2的次方 拉伸到全屏
+                 0,//边框
+                 GL_LUMINANCE,//数据格式，亮度
+                 GL_UNSIGNED_BYTE,// 像素数据类型
+                 NULL // 纹理数据，解码后再设置
+    );
+    // 设置纹理属性2
+    glBindTexture(GL_TEXTURE_2D, texts[2]);
+    // 缩小、放大的过滤器 因为视频可能拉伸放大
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);//这个可以理解为设置渲染方法？
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 设置纹理格式和大小
+    glTexImage2D(GL_TEXTURE_2D, 0,//细节基本 0默认
+                 GL_LUMINANCE,//gpu内部格式 亮度，灰度图
+                 width / 2, hight / 2, //尺寸是2的次方 拉伸到全屏
+                 0,//边框
+                 GL_LUMINANCE,//数据格式，亮度
+                 GL_UNSIGNED_BYTE,// 像素数据类型
+                 NULL // 纹理数据，解码后再设置
+    );
     env->ReleaseStringUTFChars(url_, url);
 }
